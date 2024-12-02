@@ -5,6 +5,7 @@ from spaceone.core import cache, config
 from spaceone.core.manager import BaseManager
 from spaceone.core.model.mongo_model import QuerySet
 from spaceone.inventory_v2.error import *
+from spaceone.inventory_v2.model import JobTask
 from spaceone.inventory_v2.model.collector.database import Collector
 from spaceone.inventory_v2.model.job.database import Job
 
@@ -103,10 +104,13 @@ class JobManager(BaseManager):
                     self.make_success_by_vo(job_vo)
 
             if self._is_changed(job_vo):
-                self._run_metric_queries(job_vo.plugin_id, job_vo.domain_id)
+                # todo : run metric queries
+                # self._run_metric_queries(job_vo.plugin_id, job_vo.domain_id)
+                pass
 
-    def _is_changed(self, job_vo: Job) -> bool:
-        job_task_model: JobTask = self.locator.get_model("JobTask")
+    @staticmethod
+    def _is_changed(job_vo: Job) -> bool:
+        job_task_model = JobTask
         job_task_vos: List[JobTask] = job_task_model.filter(
             job_id=job_vo.job_id, domain_id=job_vo.domain_id
         )

@@ -139,7 +139,7 @@ class AssetService(BaseService):
 
         if "region_code" in params:
             params["ref_region"] = self._make_region_key(
-                domain_id, provider, params["region_code"]
+                domain_id, workspace_id, provider, params["region_code"]
             )
 
         if "metadata" in params:
@@ -162,7 +162,6 @@ class AssetService(BaseService):
         permission="inventory-v2:CloudService.write",
         role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @convert_model
     def update(self, params: AssetUpdateRequest) -> Union[AssetResponse, dict]:
         """
         Args:
@@ -176,7 +175,7 @@ class AssetService(BaseService):
                 'data': 'dict',
                 'json_data': 'dict',
                 'metadata': 'dict',
-                # 'reference': 'dict',
+                'reference': 'dict',
                 'tags': 'list or dict',
                 'region_code': 'str',
                 'project_id': 'str',
@@ -249,6 +248,7 @@ class AssetService(BaseService):
         if "region_code" in params:
             params["ref_region"] = self._make_region_key(
                 asset_vo.domain_id,
+                asset_vo.workspace_id,
                 asset_vo.provider,
                 params["region_code"],
             )
@@ -299,96 +299,6 @@ class AssetService(BaseService):
 
         return asset_vo
 
-    @transaction(
-        permission="inventory-v2:Asset.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
-    )
-    @convert_model
-    def get(self, params: AssetGetRequest) -> Union[AssetResponse, dict]:
-        """
-        Args:
-            params (dict): {
-                    'asset_id': 'str',      # required
-                    'user_projects': 'list'         # injected from auth
-                    'workspace_id': 'str',          # injected from auth
-                    'domain_id': 'str',             # injected from auth (required)
-                }
-
-        Returns:
-            cloud_service_vo (object)
-
-        """
-
-        asset_vo = self.asset_mgr.get_asset(
-            params.asset_id, params.domain_id, params.workspace_id, params.user_projects
-        )
-        return AssetResponse(**asset_vo.to_dict())
-
-    @transaction(
-        permission="inventory-v2:Asset.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
-    )
-    @append_query_filter(
-        [
-            "asset_id",
-            "name",
-            "state",
-            "ip_address",
-            "account",
-            "instance_type",
-            "asset_type_id",
-            "cloud_service_group",
-            "provider",
-            "region_code",
-            "project_id",
-            "project_group_id",
-            "workspace_id",
-            "domain_id",
-            "user_projects",
-        ]
-    )
-    @append_keyword_filter(_KEYWORD_FILTER)
-    @set_query_page_limit(1000)
-    @convert_model
-    def list(self, params: AssetSearchQueryRequest):
-        """
-        Args:
-            params (dict): {
-                    'query': 'dict (spaceone.api.core.v1.Query)',
-                    'asset_id': 'str',
-                    'name': 'str',
-                    'state': 'str',
-                    'ip_address': 'str',
-                    'account': 'str',
-                    'instance_type': 'str',
-                    'cloud_service_type': 'str',
-                    'cloud_service_group': 'str',
-                    'provider': 'str',
-                    'region_code': 'str',
-                    'project_id': 'str',
-                    'project_group_id': 'str',
-                    'workspace_id': 'str',          # injected from auth
-                    'domain_id': 'str',             # injected from auth (required)
-                    'user_projects': 'list',        # injected from auth
-                }
-
-        Returns:
-            results (list)
-            total_count (int)
-        """
-
-        domain_id = params.domain_id
-        workspace_id = params.workspace_id
-        query = params.query or {}
-        reference_filter = {"domain_id": domain_id, "workspace_id": workspace_id}
-
-        return self.asset_mgr.list_assets(
-            query,
-            change_filter=True,
-            domain_id=domain_id,
-            reference_filter=reference_filter,
-        )
-
     @staticmethod
     def _make_cloud_service_type_key(resource_data: dict) -> str:
         return (
@@ -397,8 +307,10 @@ class AssetService(BaseService):
         )
 
     @staticmethod
-    def _make_region_key(domain_id: str, provider: str, region_code: str) -> str:
-        return f"{domain_id}.{provider}.{region_code}"
+    def _make_region_key(
+        domain_id: str, workspace_id: str, provider: str, region_code: str
+    ) -> str:
+        return f"{domain_id}.{workspace_id}.{provider}.{region_code}"
 
     @staticmethod
     def _convert_metadata(metadata: dict, provider: str) -> dict:

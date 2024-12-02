@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 class CollectorManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.collector_model = Collector()
+        self.collector_model = Collector
 
     def create_collector(self, params: dict) -> Collector:
         def _rollback(vo: Collector):

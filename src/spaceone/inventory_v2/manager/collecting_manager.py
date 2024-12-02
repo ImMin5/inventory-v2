@@ -19,7 +19,6 @@ from spaceone.inventory_v2.model.job_task.database import JobTask
 from spaceone.inventory_v2.error import *
 from spaceone.inventory_v2.lib import rule_matcher
 from spaceone.inventory_v2.conf.collector_conf import *
-from spaceone.inventory_v2.service.asset_service import AssetService
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +50,10 @@ class CollectingManager(BaseManager):
                 'token': 'str'
             }
         """
+
+        from spaceone.core import model
+
+        model.init_all(False)
 
         # set token to transaction meta
         token = params["token"]
@@ -97,7 +100,7 @@ class CollectingManager(BaseManager):
             self.job_task_mgr.make_failure_by_vo(job_task_vo)
             raise ERROR_COLLECT_CANCELED(job_id=job_id)
 
-        self.job_task_mgr.make_inprogress_by_vo(job_task_vo)
+        self.job_task_mgr.make_in_progress_by_vo(job_task_vo)
 
         try:
             # get plugin endpoint from plugin manager
@@ -107,6 +110,8 @@ class CollectingManager(BaseManager):
                 plugin_info.get("upgrade_mode", "AUTO"),
                 plugin_info.get("version"),
             )
+
+            endpoint = "grpc://localhost:51051"
 
             # collect data from plugin
             resources = collector_plugin_mgr.collect(
@@ -227,6 +232,8 @@ class CollectingManager(BaseManager):
         self._set_transaction_meta(params)
 
         for resource_data in resources:
+
+            resource_data = self._convert_resource_data(resource_data)
             resource_type = resource_data.get("resource_type")
             total_count += 1
 
@@ -236,7 +243,16 @@ class CollectingManager(BaseManager):
                     # total_count -= 1
                     pass
 
-                else:
+                # # inventory v2
+                # elif resource_type in [
+                #     "inventory.Asset",
+                #     "inventory.AssetType",
+                #     "inventory.AssetGroup",
+                # ]:
+                #     pass
+
+                elif resource_type == "inventory.Asset":
+                    print(resource_data)
                     upsert_result = self._upsert_resource(
                         resource_data, params, job_task_vo
                     )
@@ -513,7 +529,7 @@ class CollectingManager(BaseManager):
         if resource_type in self._service_and_manager_map:
             return self._service_and_manager_map[resource_type]
 
-        service: AssetService = self.locator.get_service(RESOURCE_MAP[resource_type][0])
+        service = self.locator.get_service(RESOURCE_MAP[resource_type][0])
         manager = self.locator.get_manager(RESOURCE_MAP[resource_type][1])
 
         self._service_and_manager_map[resource_type] = service, manager
@@ -525,7 +541,7 @@ class CollectingManager(BaseManager):
     ) -> dict:
         additional = {"resource_type": resource_type}
 
-        if resource_type == "inventory.CloudService":
+        if resource_type == "inventory.Asset":
             additional.update(
                 {
                     "cloud_service_group": resource_data.get("cloud_service_group"),
@@ -535,10 +551,10 @@ class CollectingManager(BaseManager):
             )
 
         if total_count == 1:
-            if resource_type == "inventory.CloudService":
-                additional["resource_id"] = resource_data.get("cloud_service_id")
-            elif resource_type == "inventory.CloudServiceType":
-                additional["resource_id"] = resource_data.get("cloud_service_type_id")
+            if resource_type == "inventory.Asset":
+                additional["resource_id"] = resource_data.get("asset_id")
+            elif resource_type == "inventory.AssetType":
+                additional["resource_id"] = resource_data.get("asset_type_id")
             elif resource_type == "inventory.Region":
                 additional["resource_id"] = resource_data.get("region_id")
 
@@ -559,7 +575,7 @@ class CollectingManager(BaseManager):
             match_rules (list): e.g. {1:['reference.resource_id'], 2:['name']}
 
         Return:
-            match_resource (dict) : resource_id for update (e.g. {'cloud_service_id': 'cloud-svc-abcde12345'})
+            match_resource (dict) : resource_id for update (e.g. {'asset_id': 'asset-abcde12345'})
             total_count (int) : total count of matched resources
         """
 
@@ -585,3 +601,34 @@ class CollectingManager(BaseManager):
                 return match_resource, total_count
 
         return match_resource, total_count
+
+    @staticmethod
+    def _convert_resource_data(resource_data: dict) -> dict:
+        resource_type = resource_data.get("resource_type")
+
+        if resource_type in ["inventory.CloudService", "inventory.CloudServiceType"]:
+            if resource_type == "inventory.CloudService":
+                resource_data["resource_type"] = "inventory.Asset"
+                resource_data["resource"]["asset_type"] = resource_data["resource"].get(
+                    "cloud_service_type"
+                )
+                resource_data["resource"]["asset_group"] = resource_data[
+                    "resource"
+                ].get("cloud_service_group")
+            elif resource_type == "inventory.CloudServiceType":
+                resource_data["resource_type"] = "inventory.AssetType"
+
+            for rule_values in resource_data.get("match_rules", {}).values():
+                for index, rule_value in enumerate(rule_values):
+                    if rule_value == "cloud_service_id":
+                        rule_values[index] = "asset_id"
+                    elif rule_value == "cloud_service_type":
+                        rule_values[index] = "asset_type_id"
+                    elif rule_value == "cloud_service_group":
+                        rule_values[index] = "asset_group_id"
+                    elif rule_value == "reference.resource_id":
+                        del rule_values[index]
+
+        _LOGGER.debug(f"[_convert_resource_data] resource_data: {resource_data}")
+
+        return resource_data

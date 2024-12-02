@@ -160,6 +160,18 @@ class IdentityManager(BaseManager):
         else:
             return self.identity_conn.dispatch("ProjectGroup.list", params)
 
+    @cache.cacheable(key="inventory:projects-in-pg:{project_group_id}", expire=300)
+    def get_projects_in_project_group(self, project_group_id: str):
+        params = {
+            "query": {
+                "only": ["project_id"],
+            },
+            "project_group_id": project_group_id,
+            "include_children": True,
+        }
+
+        return self.identity_conn.dispatch("Project.list", params)
+
     @cache.cacheable(
         key="inventory:project:query:{domain_id}:{query_hash}", expire=3600
     )

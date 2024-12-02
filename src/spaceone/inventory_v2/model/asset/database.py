@@ -22,30 +22,24 @@ class CollectionInfo(EmbeddedDocument):
 
 class Asset(MongoModel):
     asset_id = StringField(max_length=40, generate_id="asset", unique=True)
-    asset_record_id = StringField(max_length=255, default=None, unique=True)
     name = StringField(default=None, null=True)
-    state = StringField(
-        max_length=20, choices=("ACTIVE", "DISCONNECTED", "DELETED"), default="ACTIVE"
-    )
-    account = StringField(max_length=255, default=None, null=True)
-    instance_type = StringField(max_length=255, default=None, null=True)
-    instance_size = FloatField(max_length=255, default=None, null=True)
+    state = StringField(max_length=20, choices=("ACTIVE", "DISCONNECTED", "DELETED"))
+    resource_id = StringField(max_length=255, default=None, null=True)
     ip_addresses = ListField(StringField(max_length=255), default=[])
-    asset_type_id = StringField(max_length=40)
-    provider = StringField(max_length=255)
+    external_link = StringField(max_length=255, default=None, null=True)
     data = DictField()
-    metadata = DictField()
-    # reference = EmbeddedDocumentField(ReferenceResource, default={})
     tags = DictField()
-    tag_keys = DictField()
-    region_code = StringField(max_length=255, default=None, null=True)
-    ref_region = StringField(max_length=255, default=None, null=True)
+    provider = StringField(max_length=255, default=None, null=True)
+    account = StringField(max_length=255, default=None, null=True)
+    region_id = StringField(max_length=40, default=None, null=True)
+    asset_type_id = StringField(max_length=40)
+    collector_id = StringField(max_length=40, default=None, null=True)
     project_id = StringField(max_length=40)
     workspace_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
-    collection_info = EmbeddedDocumentField(CollectionInfo, default=CollectionInfo)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
+    last_collected_at = DateTimeField(null=True)
     deleted_at = DateTimeField(default=None, null=True)
 
     meta = {
@@ -54,18 +48,14 @@ class Asset(MongoModel):
             "data",
             "state",
             "account",
-            "instance_type",
-            "instance_size",
             "ip_addresses",
-            "metadata",
-            "reference",
+            "external_link",
             "tags",
-            "tag_keys",
+            "region_id",
+            "collector_id",
             "project_id",
-            "region_code",
-            "asset_type",
-            "collection_info",
             "updated_at",
+            "last_collected_at",
             "deleted_at",
         ],
         "minimal_fields": [
@@ -73,8 +63,7 @@ class Asset(MongoModel):
             "name",
             "asset_type_id",
             "provider",
-            "reference.resource_id",
-            "region_code",
+            "region_id",
             "project_id",
         ],
         "change_query_keys": {
@@ -82,11 +71,11 @@ class Asset(MongoModel):
             "ip_address": "ip_addresses",
         },
         "reference_query_keys": {
-            "ref_asset_type": {
+            "ref_asset_type_id": {
                 "model": AssetType,
-                "foreign_key": "ref_asset_type",
+                "foreign_key": "ref_asset_type_id",
             },
-            "ref_region": {"model": Region, "foreign_key": "ref_region"},
+            "ref_region_id": {"model": Region, "foreign_key": "ref_region_id"},
         },
         "indexes": [
             {
@@ -106,9 +95,8 @@ class Asset(MongoModel):
                     "domain_id",
                     "workspace_id",
                     "state",
-                    "reference.resource_id",
+                    "resource_id",
                     "provider",
-                    # "cloud_service_group",
                     "asset_type_id",
                     "asset_id",
                     "account",
@@ -121,10 +109,9 @@ class Asset(MongoModel):
                     "workspace_id",
                     "state",
                     "provider",
-                    "cloud_service_group",
-                    "cloud_service_type",
+                    "asset_type_id",
                     "project_id",
-                    "region_code",
+                    "region_id",
                 ],
                 "name": "COMPOUND_INDEX_FOR_SEARCH_1",
             },
@@ -133,9 +120,9 @@ class Asset(MongoModel):
                     "domain_id",
                     "workspace_id",
                     "state",
-                    "ref_cloud_service_type",
+                    "asset_type_id",
                     "project_id",
-                    "region_code",
+                    "region_id",
                 ],
                 "name": "COMPOUND_INDEX_FOR_SEARCH_2",
             },
@@ -159,7 +146,7 @@ class Asset(MongoModel):
                 ],
                 "name": "COMPOUND_INDEX_FOR_SEARCH_4",
             },
-            "reference.resource_id",
+            "resource_id",
             "state",
             "workspace_id",
             "domain_id",

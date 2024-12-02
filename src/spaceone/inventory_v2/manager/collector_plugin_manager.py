@@ -29,16 +29,12 @@ class CollectorPluginManager(BaseManager):
         secret_data: dict,
         task_options: dict = None,
     ) -> Generator[dict, None, None]:
-        plugin_connector: SpaceConnector = self.locator.get_connector(
-            SpaceConnector, endpoint=endpoint, token="NO_TOKEN"
-        )
+        collector_version = task_options.get("collector_version", "v1")
 
-        params = {"options": options, "secret_data": secret_data, "filter": {}}
+        if collector_version == "v1":
+            plugin_connector =
+        else:
 
-        if task_options:
-            params["task_options"] = task_options
-
-        return plugin_connector.dispatch("Collector.collect", params)
 
     def get_tasks(self, endpoint: str, secret_data: dict, options: dict) -> dict:
         plugin_connector: SpaceConnector = self.locator.get_connector(

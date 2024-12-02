@@ -1,1 +1,3 @@
+from spaceone.inventory_v2.manager.asset_manager import AssetManager
 from spaceone.inventory_v2.manager.region_manager import RegionManager
+from spaceone.inventory_v2.manager.collecting_manager import CollectingManager

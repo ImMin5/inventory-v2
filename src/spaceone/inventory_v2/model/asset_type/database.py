@@ -10,7 +10,7 @@ class AssetType(MongoModel):
         unique_with=["provider", "asset_group_id", "workspace_id", "domain_id"],
     )
     provider = StringField(max_length=255)
-    asset_grou_id = StringField(max_length=255)
+    asset_group_id = StringField(max_length=255)
     # cloud_service_type_key = StringField(max_length=255)
     # ref_cloud_service_type = StringField(max_length=255)
     service_code = StringField(max_length=255, default=None, null=True)
@@ -43,13 +43,13 @@ class AssetType(MongoModel):
             "asset_type_id",
             "name",
             "provider",
-            "group",
+            "asset_group_id",
             "service_code",
             # "is_primary",
             # "is_major",
             "resource_type",
         ],
-        "ordering": ["provider", "group", "name"],
+        "ordering": ["provider", "asset_group_id", "name"],
         "indexes": [
             {
                 "fields": ["domain_id", "-updated_at", "updated_by"],
@@ -64,9 +64,9 @@ class AssetType(MongoModel):
                     "domain_id",
                     "workspace_id",
                     "provider",
-                    "group",
+                    "asset_group_id",
                     "name",
-                    "is_primary",
+                    # "is_primary",
                 ],
                 "name": "COMPOUND_INDEX_FOR_SEARCH_2",
             },
